@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 import { attachCsrfHeader, fetchCsrfToken, needsCsrf } from './security';
+import { resolveApiUrl, resolveUploadsUrl } from './resolveApiUrl';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+const API_URL = resolveApiUrl();
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -80,7 +81,7 @@ api.interceptors.response.use(
   }
 );
 
-export const uploadsUrl = import.meta.env.VITE_UPLOADS_URL || 'http://localhost:5000/uploads';
+export const uploadsUrl = resolveUploadsUrl();
 export const getUploadUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
