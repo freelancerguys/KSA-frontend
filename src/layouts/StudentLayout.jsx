@@ -14,7 +14,6 @@ import {
   useMediaQuery,
   useTheme,
   Avatar,
-  Badge,
   Button,
   Dialog,
   DialogTitle,
@@ -29,7 +28,6 @@ import BookIcon from '@mui/icons-material/Book';
 import TargetIcon from '@mui/icons-material/GpsFixed';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import LogoutIcon from '@mui/icons-material/Logout';
-import NotificationsIcon from '@mui/icons-material/Notifications';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
 import { api, getUploadUrl } from '../api/client';
@@ -37,6 +35,7 @@ import { colors } from '../theme/theme';
 import Logo from '../components/Logo';
 import MobileBottomNav from '../components/student/MobileBottomNav';
 import MobileScrollSpacer from '../components/student/MobileScrollSpacer';
+import StudentNotificationBell from '../components/student/StudentNotificationBell';
 
 const DRAWER_WIDTH = 248;
 
@@ -129,11 +128,13 @@ export default function StudentLayout() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, logout, updateProfile } = useAuthStore();
+  const { profile, logout, updateProfile, refreshToken } = useAuthStore();
 
-  const { data: dash } = useQuery({
-    queryKey: ['student-dashboard'],
-    queryFn: async () => (await api.get('/students/dashboard')).data.data,
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['student-notifications'],
+    queryFn: async () => (await api.get('/students/notifications')).data.data.notifications,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
   });
 
   useQuery({
@@ -145,12 +146,12 @@ export default function StudentLayout() {
     },
   });
 
-  const hasNotification = !!dash?.pendingPayment;
+  const iconColor = isMobile ? colors.textOnDark : colors.text;
 
   const confirmLogout = async () => {
     setLogoutOpen(false);
     try {
-      await api.post('/auth/logout');
+      await api.post('/auth/logout', { refreshToken });
     } catch {
       /* ignore */
     }
@@ -246,16 +247,7 @@ export default function StudentLayout() {
                 </IconButton>
               </Tooltip>
 
-              <Tooltip title={hasNotification ? 'Payment pending' : 'Notifications'}>
-                <IconButton
-                  onClick={() => navigate('/student/fees')}
-                  sx={{ color: isMobile ? colors.textOnDark : colors.text }}
-                >
-                  <Badge color="error" variant="dot" invisible={!hasNotification}>
-                    <NotificationsIcon />
-                  </Badge>
-                </IconButton>
-              </Tooltip>
+              <StudentNotificationBell notifications={notifications} iconColor={iconColor} />
 
               {isMobile ? (
                 <Tooltip title="Logout">

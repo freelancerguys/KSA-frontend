@@ -1,27 +1,16 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
-import { attachCsrfHeader, fetchCsrfToken, needsCsrf } from './security';
 import { resolveApiUrl, resolveUploadsUrl } from './resolveApiUrl';
 
 const API_URL = resolveApiUrl();
 
 export const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true,
 });
 
-api.interceptors.request.use(async (config) => {
+api.interceptors.request.use((config) => {
   config.headers = config.headers || {};
   config.headers['X-Portal'] = 'student';
-
-  const method = (config.method || 'get').toUpperCase();
-
-  if (needsCsrf(method) && !config.url?.includes('/auth/csrf-token')) {
-    if (!attachCsrfHeader(config).headers['X-CSRF-Token']) {
-      await fetchCsrfToken();
-      attachCsrfHeader(config);
-    }
-  }
 
   if (config.data instanceof FormData) {
     delete config.headers['Content-Type'];
@@ -38,8 +27,17 @@ let refreshPromise = null;
 
 const refreshSession = () => {
   if (!refreshPromise) {
+    const { refreshToken } = useAuthStore.getState();
+    if (!refreshToken) {
+      return Promise.reject(new Error('No refresh token'));
+    }
     refreshPromise = api
-      .post('/auth/refresh')
+      .post('/auth/refresh', { refreshToken }, { skipAuthRefresh: true })
+      .then(({ data }) => {
+        const { accessToken, refreshToken: newRefresh } = data.data;
+        useAuthStore.getState().setTokens(accessToken, newRefresh);
+        return accessToken;
+      })
       .finally(() => {
         refreshPromise = null;
       });
@@ -51,7 +49,7 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config;
-    if (error.response?.status === 401 && original && !original._retry) {
+    if (error.response?.status === 401 && original && !original._retry && !original.skipAuthRefresh) {
       original._retry = true;
       try {
         await refreshSession();
@@ -64,19 +62,6 @@ api.interceptors.response.use(
         }
       }
     }
-    if (
-      error.response?.status === 403
-      && error.response?.data?.message?.includes('CSRF')
-      && original
-      && !original._csrfRetry
-    ) {
-      original._csrfRetry = true;
-      const { fetchCsrfToken: refreshCsrf, clearCsrfToken } = await import('./security');
-      clearCsrfToken();
-      await refreshCsrf();
-      attachCsrfHeader(original);
-      return api(original);
-    }
     return Promise.reject(error);
   }
 );
@@ -85,5 +70,6 @@ export const uploadsUrl = resolveUploadsUrl();
 export const getUploadUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
-  return `${uploadsUrl}/${path}`;
+  const clean = String(path).replace(/^\/+/, '');
+  return `${uploadsUrl}/${clean}`;
 };

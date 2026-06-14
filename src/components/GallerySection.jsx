@@ -20,7 +20,7 @@ import { colors } from '../theme/theme';
 
 const CAROUSEL_THRESHOLD = 4;
 
-function GalleryCard({ item, onClick }) {
+function GalleryCard({ item, onClick, serialNumber }) {
   return (
     <Card
       onClick={onClick}
@@ -29,10 +29,35 @@ function GalleryCard({ item, onClick }) {
         overflow: 'hidden',
         borderRadius: 2,
         flexShrink: 0,
+        position: 'relative',
         '&:hover': { boxShadow: `0 12px 40px ${colors.primary}44` },
         '&:hover img': { transform: 'scale(1.06)' },
       }}
     >
+      {serialNumber != null && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 10,
+            left: 10,
+            zIndex: 1,
+            minWidth: 28,
+            height: 28,
+            px: 0.75,
+            borderRadius: 1.5,
+            bgcolor: colors.primary,
+            color: colors.secondary,
+            fontWeight: 800,
+            fontSize: '0.75rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+          }}
+        >
+          {String(serialNumber).padStart(2, '0')}
+        </Box>
+      )}
       <CardMedia
         component="img"
         height="180"
@@ -85,13 +110,15 @@ export default function GallerySection({ items = [] }) {
   return (
     <Box id="gallery" className="section" sx={{ bgcolor: '#f5f5f5' }}>
       <Container maxWidth="lg">
-        <SectionTitle subtitle="MOMENTS" title="Gallery" />
+        <SectionTitle subtitle="MOMENTS" title="Gallery" count={items.length} />
       </Container>
 
       {useCarousel ? (
         <Box sx={{ mt: 1 }}>
           <HorizontalMarquee duration={scrollDuration} gap={2}>
-            {loopItems.map((g, index) => (
+            {loopItems.map((g, index) => {
+              const serialNumber = (index % items.length) + 1;
+              return (
               <Box
                 key={`${g._id}-${index}`}
                 sx={{
@@ -100,9 +127,10 @@ export default function GallerySection({ items = [] }) {
                   flexShrink: 0,
                 }}
               >
-                <GalleryCard item={g} onClick={() => openAt(index)} />
+                <GalleryCard item={g} serialNumber={serialNumber} onClick={() => openAt(index % items.length)} />
               </Box>
-            ))}
+              );
+            })}
           </HorizontalMarquee>
         </Box>
       ) : (
@@ -111,7 +139,7 @@ export default function GallerySection({ items = [] }) {
             {items.map((g, index) => (
               <Grid item xs={6} sm={4} md={3} key={g._id}>
                 <motion.div whileHover={{ scale: 1.03 }}>
-                  <GalleryCard item={g} onClick={() => openAt(index)} />
+                  <GalleryCard item={g} serialNumber={index + 1} onClick={() => openAt(index)} />
                 </motion.div>
               </Grid>
             ))}

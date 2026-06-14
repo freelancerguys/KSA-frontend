@@ -41,7 +41,7 @@ function CardSkeleton() {
   );
 }
 
-function renderCard(item, { imageKey, descriptionKey, linkable }) {
+function renderCard(item, { imageKey, descriptionKey, linkable, serialNumber }) {
   const imageSrc = item[imageKey] ? getUploadUrl(item[imageKey]) : null;
   const description = item[descriptionKey] || '';
   const href = linkable && item.slug ? `/blogs/${item.slug}` : undefined;
@@ -53,6 +53,7 @@ function renderCard(item, { imageKey, descriptionKey, linkable }) {
       description={description}
       href={href}
       showReadMore={!!href}
+      serialNumber={serialNumber}
     />
   );
 }
@@ -84,7 +85,7 @@ export default function ContentGridSection({
       }}
     >
       <Container maxWidth="lg">
-        <SectionTitle subtitle={subtitle} title={title} />
+        <SectionTitle subtitle={subtitle} title={title} count={items.length || undefined} />
       </Container>
 
       {isLoading ? (
@@ -105,7 +106,9 @@ export default function ContentGridSection({
         </Container>
       ) : useCarousel ? (
         <HorizontalMarquee duration={scrollDuration} gap={3}>
-          {loopItems.map((item, index) => (
+          {loopItems.map((item, index) => {
+            const serialNumber = (index % items.length) + 1;
+            return (
             <Box
               key={`${item._id || item.slug}-${index}`}
               sx={{
@@ -114,9 +117,10 @@ export default function ContentGridSection({
                 flexShrink: 0,
               }}
             >
-              {renderCard(item, cardOpts)}
+              {renderCard(item, { ...cardOpts, serialNumber })}
             </Box>
-          ))}
+            );
+          })}
         </HorizontalMarquee>
       ) : (
         <Container maxWidth="lg">
@@ -124,7 +128,7 @@ export default function ContentGridSection({
             {items.map((item, index) => (
               <Grid item xs={12} sm={6} md={4} key={item._id || item.slug || index}>
                 <motion.div {...fadeUp} transition={{ delay: index * 0.08 }}>
-                  {renderCard(item, cardOpts)}
+                  {renderCard(item, { ...cardOpts, serialNumber: index + 1 })}
                 </motion.div>
               </Grid>
             ))}

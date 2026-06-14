@@ -8,7 +8,7 @@ export const resolveUploadsUrl = () => {
   const fromEnv = import.meta.env.VITE_UPLOADS_URL?.trim();
   if (fromEnv) return fromEnv.replace(/\/$/, '');
   if (import.meta.env.DEV) {
-    return import.meta.env.VITE_UPLOADS_URL || 'http://localhost:5000/uploads';
+    return '/uploads';
   }
   return '/uploads';
 };

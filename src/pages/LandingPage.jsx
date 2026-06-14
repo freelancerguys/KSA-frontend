@@ -16,6 +16,8 @@ export default function LandingPage() {
       const res = await api.get('/cms/public');
       return res.data.data;
     },
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
   });
 
   const settings = data?.settings || {};

@@ -48,6 +48,7 @@ export default function FeesPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-payments'] });
       qc.invalidateQueries({ queryKey: ['student-dashboard'] });
+      qc.invalidateQueries({ queryKey: ['student-notifications'] });
       qc.invalidateQueries({ queryKey: ['upi-qr'] });
       setFile(null);
       setTransactionId('');

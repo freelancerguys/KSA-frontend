@@ -5,13 +5,9 @@ import InstagramIcon from '@mui/icons-material/Instagram';
 import DirectionsIcon from '@mui/icons-material/Directions';
 import { colors } from '../theme/theme';
 import Logo from './Logo';
+import { SITE_CONTACT, SITE_SOCIAL, SITE_DIRECTIONS_URL } from '../constants/siteContact';
 
-const SOCIAL = {
-  facebook: 'https://www.facebook.com/profile.php?id=100092375982780',
-  instagram: 'https://www.instagram.com/officialkalyanishootingacademy/',
-};
-
-const DEFAULT_DIRECTIONS_URL = 'https://share.google/b1hgEOB0LSIUXV7FQ';
+const DEFAULT_DIRECTIONS_URL = SITE_DIRECTIONS_URL;
 
 const AFFILIATION = {
   wbraLogo: 'https://wbrashooting.com/wp-content/uploads/2019/10/wbra_logo.svg',
@@ -22,9 +18,9 @@ const AFFILIATION = {
 
 export default function Footer({ settings = {} }) {
   const social = settings.socialLinks || {};
-  const facebookUrl = social.facebook || SOCIAL.facebook;
-  const instagramUrl = social.instagram || SOCIAL.instagram;
-  const address = settings.contactAddress || 'Block A, Kalyani, West Bengal, India';
+  const facebookUrl = social.facebook || SITE_SOCIAL.facebook;
+  const instagramUrl = social.instagram || SITE_SOCIAL.instagram;
+  const address = settings.contactAddress || SITE_CONTACT.address;
 
   return (
     <Box component="footer" id="contact" sx={{ bgcolor: colors.secondary, color: colors.textOnDark, py: { xs: 5, md: 6 } }}>
@@ -153,10 +149,10 @@ export default function Footer({ settings = {} }) {
               Contact
             </Typography>
             <Typography variant="body2" sx={{ color: colors.textMutedOnDark }}>
-              Phone: {settings.contactPhone || '+91 70037 17476'}
+              Phone: {settings.contactPhone || SITE_CONTACT.phone}
             </Typography>
             <Typography variant="body2" sx={{ color: colors.textMutedOnDark, mt: 0.5 }}>
-              Email: {settings.contactEmail || 'kalyanishooting@gmail.com'}
+              Email: {settings.contactEmail || SITE_CONTACT.email}
             </Typography>
           </Box>
 

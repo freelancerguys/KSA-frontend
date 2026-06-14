@@ -12,6 +12,7 @@ export default function ContentCard({
   description,
   href,
   showReadMore = false,
+  serialNumber,
 }) {
   const media = image ? (
     <Box
@@ -44,6 +45,30 @@ export default function ContentCard({
           pointerEvents: 'none',
         }}
       />
+      {serialNumber != null && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 12,
+            left: 12,
+            minWidth: 32,
+            height: 32,
+            px: 1,
+            borderRadius: 1.5,
+            bgcolor: colors.primary,
+            color: colors.secondary,
+            fontWeight: 800,
+            fontSize: '0.875rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+            zIndex: 1,
+          }}
+        >
+          {String(serialNumber).padStart(2, '0')}
+        </Box>
+      )}
     </Box>
   ) : (
     <Box
@@ -54,8 +79,31 @@ export default function ContentCard({
         justifyContent: 'center',
         bgcolor: colors.surfaceAlt,
         background: `linear-gradient(135deg, ${colors.surface} 0%, ${colors.primaryMuted} 100%)`,
+        position: 'relative',
       }}
     >
+      {serialNumber != null && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 12,
+            left: 12,
+            minWidth: 32,
+            height: 32,
+            px: 1,
+            borderRadius: 1.5,
+            bgcolor: colors.primary,
+            color: colors.secondary,
+            fontWeight: 800,
+            fontSize: '0.875rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {String(serialNumber).padStart(2, '0')}
+        </Box>
+      )}
       <ImageOutlinedIcon sx={{ fontSize: 48, color: colors.textMuted, opacity: 0.35 }} />
     </Box>
   );
