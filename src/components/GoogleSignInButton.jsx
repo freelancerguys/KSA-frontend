@@ -1,27 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box, Typography, CircularProgress } from '@mui/material';
 import { colors } from '../theme/theme';
-
-const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() || '';
-
-let scriptPromise = null;
-
-const loadGoogleScript = () => {
-  if (window.google?.accounts?.id) return Promise.resolve();
-  if (scriptPromise) return scriptPromise;
-
-  scriptPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = resolve;
-    script.onerror = () => reject(new Error('Failed to load Google sign-in'));
-    document.head.appendChild(script);
-  });
-
-  return scriptPromise;
-};
+import {
+  GOOGLE_CLIENT_ID,
+  ensureGoogleInitialized,
+  isGoogleLoginEnabled,
+  renderGoogleButton,
+  setGoogleCredentialCallback,
+} from '../utils/googleAuth';
 
 /** Official Google "G" mark — optimized for 20–24px display */
 function GoogleIcon({ size = 22 }) {
@@ -72,11 +58,12 @@ function CustomGoogleFace({ loading = false, compact = false }) {
         pl: compact ? '52px' : { xs: '56px', sm: '58px' },
         pr: 2,
         borderRadius: 999,
-        background: `linear-gradient(90deg, rgba(255,214,0,0.22) 0%, #fffef8 45%, #ffffff 100%)`,
-        border: `1.5px solid rgba(255,214,0,0.55)`,
+        background: 'linear-gradient(90deg, rgba(255,214,0,0.22) 0%, #fffef8 45%, #ffffff 100%)',
+        border: '1.5px solid rgba(255,214,0,0.55)',
         boxShadow: '0 2px 10px rgba(255,214,0,0.2), inset 0 1px 0 rgba(255,255,255,0.9)',
         transition: 'background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease',
         userSelect: 'none',
+        pointerEvents: 'none',
       }}
     >
       <Box
@@ -121,35 +108,7 @@ function CustomGoogleFace({ loading = false, compact = false }) {
   );
 }
 
-const wrapperSx = (disabled, compact) => ({
-  position: 'relative',
-  width: '100%',
-  height: compact ? 44 : { xs: 48, sm: 50 },
-  borderRadius: 999,
-  opacity: disabled ? 0.55 : 1,
-  pointerEvents: disabled ? 'none' : 'auto',
-  cursor: disabled ? 'not-allowed' : 'pointer',
-  outline: 'none',
-  '&:hover .google-custom-face': disabled
-    ? {}
-    : {
-      background: `linear-gradient(90deg, rgba(255,214,0,0.38) 0%, #fffce0 50%, #ffffff 100%)`,
-      borderColor: colors.primary,
-      boxShadow: '0 4px 16px rgba(255,214,0,0.35), inset 0 1px 0 rgba(255,255,255,0.95)',
-      transform: 'translateY(-1px)',
-    },
-  '&:active .google-custom-face': disabled
-    ? {}
-    : {
-      transform: 'translateY(0) scale(0.99)',
-      boxShadow: '0 2px 8px rgba(255,214,0,0.25)',
-    },
-  '&:focus-visible .google-custom-face': {
-    boxShadow: `0 0 0 3px ${colors.primaryMuted}, 0 2px 10px rgba(255,214,0,0.2)`,
-  },
-});
-
-export const isGoogleLoginEnabled = () => Boolean(CLIENT_ID);
+export { isGoogleLoginEnabled };
 
 export default function GoogleSignInButton({
   onSuccess,
@@ -158,105 +117,123 @@ export default function GoogleSignInButton({
   onNotConfigured,
   compact = false,
 }) {
-  const hiddenRef = useRef(null);
+  const overlayRef = useRef(null);
   const [ready, setReady] = useState(false);
-
-  const triggerGoogleSignIn = useCallback(() => {
-    if (disabled || !ready || !hiddenRef.current) return false;
-    const root = hiddenRef.current;
-    const btn = root.querySelector('[role="button"]') || root.firstElementChild;
-    if (btn && typeof btn.click === 'function') {
-      btn.click();
-      return true;
-    }
-    return false;
-  }, [disabled, ready]);
+  const onSuccessRef = useRef(onSuccess);
+  const onErrorRef = useRef(onError);
 
   useEffect(() => {
-    if (!CLIENT_ID || !hiddenRef.current) return undefined;
+    onSuccessRef.current = onSuccess;
+  }, [onSuccess]);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return undefined;
 
     let cancelled = false;
 
-    (async () => {
+    setGoogleCredentialCallback((response) => {
+      onSuccessRef.current?.(response);
+    });
+
+    const mountButton = async () => {
       try {
-        await loadGoogleScript();
-        if (cancelled || !hiddenRef.current) return;
-
-        window.google.accounts.id.initialize({
-          client_id: CLIENT_ID,
-          callback: (response) => onSuccess?.({ credential: response.credential }),
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
-
-        hiddenRef.current.innerHTML = '';
-        window.google.accounts.id.renderButton(hiddenRef.current, {
-          type: 'standard',
-          theme: 'outline',
-          size: 'large',
-          text: 'continue_with',
-          shape: 'rectangular',
-          width: 400,
-          logo_alignment: 'left',
-        });
-
+        await ensureGoogleInitialized();
+        if (cancelled || !overlayRef.current) return;
+        renderGoogleButton(overlayRef.current);
         if (!cancelled) setReady(true);
       } catch {
-        if (!cancelled) onError?.();
+        if (!cancelled) onErrorRef.current?.();
       }
-    })();
+    };
+
+    mountButton();
 
     return () => {
       cancelled = true;
     };
-  }, [onSuccess, onError]);
+  }, []);
 
-  const handleClick = () => {
-    if (disabled) return;
-    if (!CLIENT_ID) {
-      onNotConfigured?.();
-      return;
-    }
-    if (!ready) return;
-    if (!triggerGoogleSignIn()) onError?.();
-  };
+  useEffect(() => {
+    if (!ready || !overlayRef.current) return;
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handleClick();
-    }
-  };
+    renderGoogleButton(overlayRef.current);
 
-  return (
-    <>
-      {/* Hidden official Google button — triggered programmatically on custom button click */}
-      <Box
-        ref={hiddenRef}
-        aria-hidden
-        sx={{
-          position: 'fixed',
-          left: -9999,
-          top: 0,
-          width: 400,
-          height: 50,
-          overflow: 'hidden',
-          opacity: 0,
-          pointerEvents: 'none',
-        }}
-      />
+    const el = overlayRef.current;
+    const parent = el.parentElement;
+    if (!parent || typeof ResizeObserver === 'undefined') return undefined;
 
+    const resizeObserver = new ResizeObserver(() => {
+      if (overlayRef.current) renderGoogleButton(overlayRef.current);
+    });
+    resizeObserver.observe(parent);
+    return () => resizeObserver.disconnect();
+  }, [ready, compact]);
+
+  if (!GOOGLE_CLIENT_ID) {
+    return (
       <Box
         role="button"
-        tabIndex={disabled ? -1 : 0}
-        aria-label="Continue with Google"
-        aria-disabled={disabled || !ready}
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        sx={wrapperSx(disabled, compact)}
+        tabIndex={0}
+        onClick={() => onNotConfigured?.()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') onNotConfigured?.();
+        }}
+        sx={{
+          width: '100%',
+          cursor: 'pointer',
+          borderRadius: 999,
+        }}
       >
-        <CustomGoogleFace loading={!ready && Boolean(CLIENT_ID)} compact={compact} />
+        <CustomGoogleFace compact={compact} />
       </Box>
-    </>
+    );
+  }
+
+  const h = compact ? 44 : { xs: 48, sm: 50 };
+
+  return (
+    <Box
+      sx={{
+        position: 'relative',
+        width: '100%',
+        height: h,
+        minHeight: h,
+        borderRadius: 999,
+        opacity: disabled ? 0.55 : 1,
+        '&:hover .google-custom-face': disabled
+          ? {}
+          : {
+            background: 'linear-gradient(90deg, rgba(255,214,0,0.38) 0%, #fffce0 50%, #ffffff 100%)',
+            borderColor: colors.primary,
+            boxShadow: '0 4px 16px rgba(255,214,0,0.35), inset 0 1px 0 rgba(255,255,255,0.95)',
+            transform: 'translateY(-1px)',
+          },
+      }}
+    >
+      <CustomGoogleFace loading={!ready} compact={compact} />
+
+      {/* Real Google button — user clicks this directly (reliable on repeat logins). */}
+      <Box
+        ref={overlayRef}
+        aria-label="Continue with Google"
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 2,
+          overflow: 'hidden',
+          borderRadius: 999,
+          opacity: 0.0001,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          pointerEvents: disabled ? 'none' : 'auto',
+          '& iframe': {
+            margin: '0 !important',
+          },
+        }}
+      />
+    </Box>
   );
 }

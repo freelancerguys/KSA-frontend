@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -91,7 +91,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSuccess = async (response) => {
+  const handleGoogleSuccess = useCallback(async (response) => {
     setError('');
     setGoogleLoading(true);
     try {
@@ -99,13 +99,26 @@ export default function LoginPage() {
         idToken: response.credential,
         portal: 'student',
       });
-      completeLogin(res.data.data);
+      if (res.data.data.user.role !== 'student') {
+        setError('Please use the admin panel for admin login.');
+        return;
+      }
+      login(res.data.data);
+      navigate('/student');
     } catch (e) {
       setError(e.response?.data?.message || 'Google sign-in failed');
     } finally {
       setGoogleLoading(false);
     }
-  };
+  }, [login, navigate]);
+
+  const handleGoogleError = useCallback(() => {
+    setError('Google sign-in was cancelled or could not start. Please try again.');
+  }, []);
+
+  const handleGoogleNotConfigured = useCallback(() => {
+    setError('Google sign-in is not configured yet. Use email and password to log in.');
+  }, []);
 
   const busy = isSubmitting || googleLoading;
 
@@ -181,8 +194,8 @@ export default function LoginPage() {
       <motion.div {...fadeUp} transition={{ delay: 0.05 }}>
               <GoogleSignInButton
                 onSuccess={handleGoogleSuccess}
-                onError={() => setError('Google sign-in was cancelled or failed')}
-                onNotConfigured={() => setError('Google sign-in is not configured yet. Use email and password to log in.')}
+                onError={handleGoogleError}
+                onNotConfigured={handleGoogleNotConfigured}
                 disabled={busy}
                 compact={compact && isUltrawide}
               />
